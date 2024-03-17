@@ -11,5 +11,10 @@ The user can therefore select one or more assets in in the dual list object. Cli
 
 ![Screenshot 2024-03-17 173720](https://github.com/amazzola90/JETFSelector/assets/107709367/db0dec57-2da0-4673-9c77-3a4dc0ca0ba8)
 
+A search bar is also available to search for assets using a key word present in the name, or the asset isin or ticker.
+
+![Screenshot 2024-03-17 180459](https://github.com/antomazz/JETFSelector/assets/107709367/442227ae-fa75-49df-9f35-f900c6185df2)
+
+
 ## Acknowledgements
 This work was inspired by the public repository of theperu available [here](https://github.com/theperu/justETF-complete-ETF-scraper).
