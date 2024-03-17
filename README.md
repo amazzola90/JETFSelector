@@ -10,3 +10,6 @@ The tool will connect to the JustEtf website to download the list of all availab
 The user can therefore select one or more assets in in the dual list object. Clicking on Apply, the code will exit the interface and return a structure of structures, whose fields are the selected ETF isins. Each ETF structure instead contains the main asset downloaded from [JustEtf.com](https://www.justetf.com/en/).
 
 ![Screenshot 2024-03-17 173720](https://github.com/amazzola90/JETFSelector/assets/107709367/db0dec57-2da0-4673-9c77-3a4dc0ca0ba8)
+
+## Acknowledgements
+This work was inspired by the public repository of theperu available [here](https://github.com/theperu/justETF-complete-ETF-scraper).
