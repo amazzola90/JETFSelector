@@ -1,7 +1,31 @@
 function out = JETFSelector()
+%% JETFSelector is a simple matlab gui to do a screening of ETF/ETC/ETN based on some search filters.
+% The tool connects to the justETF.com website and does the query of the
+% asset information based on the selection criteria.
+% 
+%
+% Author:   Antonino Mazzola
+%
+% Date:     17/03/2024 - First release
+%           18/03/2024 - Code comments and default output bug fix
+%
+% Inputs:
+%           Input - nothing required
+%
+% Outputs: 
+%           Output - structures with selected assets info
+%
+% Example:
+%
+%           out = JETFSelector() 
 
-jtf = JustETF();
+%% Define default output
+out = [];
 
+%% instance of JTF class 
+jtf = JETF();
+
+%% GUI creation
 delete(findall(0, 'type', 'figure', 'tag', 'AssetSelector'));
 
 figH = figure(...
@@ -29,32 +53,38 @@ figH = figure(...
     'defaultuicontrolinterruptible' , 'off', ...
     'DockControls'                  , 'off');
 
+
 figH.Position = [300 150 1200 600];
 figH.Visible = 'on';
 
+jFrame = getjframe(figH);
+jFrame.setAlwaysOnTop(true);
+
+% main gui components creation
 FontSize = 11;
 
 vBox = uix.VBox( 'Parent', figH, 'Spacing', 2, 'Padding', 5,'BackgroundColor',[1 1 1] );
 
+% Filters section
 hRowFilters = uix.HBox( 'Parent', vBox, 'Spacing', 10, 'Padding', 0,'BackgroundColor',[1 1 1] );
 vBox1 =  uix.VBox( 'Parent', hRowFilters, 'Spacing', 2, 'Padding', 0,'BackgroundColor',[1 1 1] );
 hAssetTypeCheck = uicontrol( 'Style','check','Parent', vBox1, 'String','Asset Type','FontSize',FontSize,'BackgroundColor',[1 1 1],'Callback',@AssetTypeCheckCallback);
-hAssetTypePopup = uicontrol( 'Style','popup','Parent', vBox1, 'String',JustETF().assetClassOptions,'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
+hAssetTypePopup = uicontrol( 'Style','popup','Parent', vBox1, 'String',JETF().assetClassOptions,'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
 set( vBox1, 'Heights', [25 25] );
 
 vBox2 =  uix.VBox( 'Parent', hRowFilters, 'Spacing', 2, 'Padding', 0,'BackgroundColor',[1 1 1] );
 hPolicyCheck = uicontrol( 'Style','check','Parent', vBox2, 'String','Distribution Policy','FontSize',FontSize,'BackgroundColor',[1 1 1],'Callback',@PolicyCheckCallback);
-hPolicyPopup = uicontrol( 'Style','popup','Parent', vBox2, 'String',JustETF().distributionPolicyOptions,'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
+hPolicyPopup = uicontrol( 'Style','popup','Parent', vBox2, 'String',JETF().distributionPolicyOptions,'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
 set( vBox2, 'Heights', [25 25] );
 
 vBox3 =  uix.VBox( 'Parent', hRowFilters, 'Spacing', 2, 'Padding', 0,'BackgroundColor',[1 1 1] );
 hReplicationCheck = uicontrol( 'Style','check','Parent', vBox3, 'String','Replication Type','FontSize',FontSize,'BackgroundColor',[1 1 1],'Callback',@ReplicationCheckCallback);
-hReplicationPopup = uicontrol( 'Style','popup','Parent', vBox3, 'String',JustETF().replicationTypeOptions,'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
+hReplicationPopup = uicontrol( 'Style','popup','Parent', vBox3, 'String',JETF().replicationTypeOptions,'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
 set( vBox3, 'Heights', [25 25] );
 
 vBox4 =  uix.VBox( 'Parent', hRowFilters, 'Spacing', 2, 'Padding', 0,'BackgroundColor',[1 1 1] );
 hCountryCheck = uicontrol( 'Style','check','Parent', vBox4, 'String','Country','FontSize',FontSize,'BackgroundColor',[1 1 1],'Callback',@CountryCheckCallback);
-hCountryPopup = uicontrol( 'Style','popup','Parent', vBox4, 'String',JustETF().country(:,2),'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
+hCountryPopup = uicontrol( 'Style','popup','Parent', vBox4, 'String',JETF().country(:,2),'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
 set( vBox4, 'Heights', [25 25] );
 
 uix.Empty('Parent',vBox);
@@ -67,6 +97,7 @@ set( hRowApplyFilters, 'Widths', [100 100 -1] );
 
 uix.Empty('Parent',vBox);
 
+% Tree and Dual List section
 hRow = uix.HBox( 'Parent', vBox, 'Spacing', 5, 'Padding', 0,'BackgroundColor',[1 1 1] );
 PanelTree =  uipanel(...
     'units'                     , 'normalized', ...
@@ -82,6 +113,7 @@ PanelTree =  uipanel(...
     'tag'                       , 'TreePanel');
 
 
+% need to define a jScrollPane as container for the jTree
 jScroll = javaObjectEDT(javax.swing.JScrollPane);
 [~,hScrollContainer] = javacomponent(...
     jScroll,...
@@ -91,6 +123,7 @@ jScroll = javaObjectEDT(javax.swing.JScrollPane);
 hScrollContainer.Units      = 'normalized';
 hScrollContainer.Position   = [0 0 1 1];
 
+% Definition of dual list object
 jListModel  = javaObjectEDT(com.jidesoft.list.DefaultDualListModel());
 jList       = handle(javaObjectEDT(com.jidesoft.list.DualList(jListModel)), 'CallbackProperties');
 jList.setSelectionMode(jListModel.DISABLE_SELECTION);
@@ -106,6 +139,7 @@ set(hRow, 'Widths', [200 -1] )
 
 uix.Empty('Parent',vBox);
 
+% adding a search box to filter further with asset name or isin or ticker
 SearchRow = uix.Grid('Parent',vBox, 'Spacing', 5, 'Padding', 0, 'BackgroundColor',[1 1 1]);
 
 jSearch = com.mathworks.widgets.SearchTextField('Asset Name');
@@ -121,7 +155,7 @@ set(jClearButton, 'ActionPerformedCallback', @PrintCurrentSearch)
 [~, ~] = javacomponent(jSearchPanel, [1 1 1 1], SearchRow);
 set(SearchRow, 'Widths', -1, 'Heights', 25);
 
-
+% final section with cancel and apply button
 FifthRow = uix.HBox( 'Parent', vBox, 'Spacing', 5, 'Padding', 0,'BackgroundColor',[1 1 1] );
 uix.Empty('Parent',FifthRow);
 uicontrol( 'Style','push','Parent', FifthRow, 'String',{'Cancel'},'FontSize',FontSize,'Callback',@SettingsDialogCloseReqFcn);
@@ -136,6 +170,7 @@ FullETFTags     = [];
 FullETFIsins    = [];
 FullETFTickers  = [];
 
+% call to reset filters triggers the query to jtf
 ResetFilters();
 
 try
@@ -143,13 +178,17 @@ try
 catch
 end
 
-
+%% assign output and exit
 for zz = 1:numel(ListOfAssets)
     idxSel = strcmp(FullETFNames, ListOfAssets{zz});
     out.(FullETFIsins{idxSel}) = jtf.data(idxSel);
 end
 
+%% Support functions
+
     function ResetFilters(varargin)
+        
+        % deactivate all filters popups
         hAssetTypeCheck.Value       = 0;
         hPolicyCheck.Value          = 0;
         hReplicationCheck.Value     = 0;
@@ -160,8 +199,10 @@ end
         ReplicationCheckCallback();
         CountryCheckCallback();
         
+        % reset also the search box
         jSearchBox.setText('');
         
+        % call to apply filters
         ApplyFilters();
         
     end
@@ -170,6 +211,7 @@ end
         drawnow nocallbacks
         pause(0.01)
         
+        % call to JTF
         queryJTF();
         
         set(figH,'Pointer','arrow');
@@ -178,6 +220,7 @@ end
     end
     function queryJTF(varargin)
         
+        % Build up the filter matrix
         asset_filter = [];
         if hAssetTypeCheck.Value
             asset_filter = {'assetClass',hAssetTypePopup.String(hAssetTypePopup.Value)};
@@ -199,20 +242,24 @@ end
         
         options = [];
         if hCountryCheck.Value
-            options.country = JustETF().country(hCountryPopup.Value,1);
+            options.country = JETF().country(hCountryPopup.Value,1);
         end
+        
+        % call to jtf to query justetf.com
         
         jtf.make_request(the_filter,  options);
         
+        % process data output
         DataEtf         = jtf.data;
         
         FullETFNames    = {DataEtf(:).name}';
         FullETFIsins    = {DataEtf(:).isin}';
         FullETFTickers  = {DataEtf(:).ticker}';
         
+        % first word of etf names is the management company of the fund
         FullETFTags     = strtok(FullETFNames, ' ');
         
-        
+        % build tree
         [MainNode, ~]   = BuildTree(FullETFTags);
         jTree           = com.mathworks.mwswing.MJTree(MainNode);
         
@@ -220,11 +267,15 @@ end
         
         jScroll.setViewportView(jTree);
         
+        % process search box string
         ListOfAssets = GetCurrentTextString(FullETFNames, FullETFIsins, FullETFTickers);
         
+        % update dual list
         setListToDualList(ListOfAssets);
         
     end
+
+    % Filters callbacks
     function CountryCheckCallback(varargin)
         if hCountryCheck.Value
             hCountryPopup.Enable = 'on';
@@ -258,14 +309,18 @@ end
         %         ApplyFilters();
     end
     function KeyPressedCallback(varargin)
-        if varargin{2}.getKeyCode == 10
+        if varargin{2}.getKeyCode == 10 % this is the "enter" key code
             PrintCurrentSearch(varargin{:});
         end
     end
+
+    % search box function to process and update the dual list
     function PrintCurrentSearch(varargin)
         ListOfAssets = GetCurrentTextString(FullETFNames, FullETFIsins, FullETFTickers);
         setListToDualList(ListOfAssets);
     end
+
+    % function that does the actual search box string processing
     function ListOfAssets_ = GetCurrentTextString(Names, Isins, Tickers, varargin)
         
         CurrentString   = lower(char(jSearchBox.getText));
@@ -274,6 +329,8 @@ end
         idxIsins        = contains(lower(Isins),CurrentString);
         idxTickers      = contains(lower(Tickers),CurrentString);
         
+        % if the user puts the isin or the ticker the tool will find the
+        % correspondent asset 
         idxs            = idxNames | idxIsins | idxTickers;
         
         ListOfAssets_ = Names;
@@ -303,6 +360,7 @@ end
         hList.setModel(listModel);
     end
 
+    % jTree callbacks
     function TreeMousePressedFcn(~,eventData)
         % Get the clicked node
         clickX = eventData.getX;
@@ -355,7 +413,7 @@ end
         end
     end
 
-
+    % Apply button callback
     function ApplyCallback(varargin)
         ListOfAssets = cell(hList.getSelectedValues);
         delete(figH)
