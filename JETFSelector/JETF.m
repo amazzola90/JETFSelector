@@ -1,23 +1,23 @@
 classdef JETF < handle
-%% JETF is the main class to handle requests to the website justETF.com.
-% 
-%
-% Author:   Antonino Mazzola
-%
-% Date:     17/03/2024 - First release
-%           22/03/2024 - Code comments
-%
-% Inputs:
-%           Input - nothing required
-%
-% Outputs: 
-%           Output - object instance of JETF
-%
-% Example:
-%
-%           jtf = JETF() 
-
-%% Main code
+    %% JETF is the main class to handle requests to the website justETF.com.
+    %
+    %
+    % Author:   Antonino Mazzola
+    %
+    % Date:     17/03/2024 - First release
+    %           22/03/2024 - Code comments
+    %
+    % Inputs:
+    %           Input - nothing required
+    %
+    % Outputs:
+    %           Output - object instance of JETF
+    %
+    % Example:
+    %
+    %           jtf = JETF()
+    
+    %% Main code
     properties
         data
         
@@ -90,6 +90,17 @@ classdef JETF < handle
             'GB','United Kingdom';
             'US','United States'};
         
+        listings = ...
+            {
+            'XMIL', 'Borsa Italiana',           'MI'
+            'XLON', 'London Stock Exchange',    'L'
+            'XETR', 'XETRA',                    'DE'              
+            'XSTU', 'Stuttgard',                'SG'           
+            'XPAR', 'Euronext Paris',           'PA'  
+            'XMAD', 'Madrid',                   'MA'       
+            'XAMS', 'Euronext Amsterdam',       'AS'
+            }
+        
         fields_to_keep = {
             'name'
             'isin'
@@ -149,9 +160,13 @@ classdef JETF < handle
             if ~isempty(options)
                 fields = fieldnames(options);
                 for jj = 1:numel(fields)
+                    theField = fields{jj};
+                    if strcmp(theField, 'listings')
+                        theField = 'ls';
+                    end
                     for nn = 1:numel(options.(fields{jj})(:,1))
                         if ~isempty(options.(fields{jj}){nn,1})
-                            Params =  [Params '&' fields{jj} '=' options.(fields{jj}){nn,1}];
+                            Params =  [Params '&' theField '=' options.(fields{jj}){nn,1}];
                         end
                     end
                 end
@@ -162,14 +177,13 @@ classdef JETF < handle
                 'draw',1,...
                 'start',0,...
                 'length',-1,...
-                'lang', 'eng',...
+                'lang', 'en',...
                 'country' ,'IT',...
                 'universeType','private',...
                 'etfsParams',Params,...
                 obj.options);
             
             obj.convert_data(Data.data);
-            
         end
         
         % filter out fields not required

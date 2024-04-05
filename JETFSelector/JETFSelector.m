@@ -2,27 +2,29 @@ function out = JETFSelector()
 %% JETFSelector is a simple matlab gui to do a screening of ETF/ETC/ETN based on some search filters.
 % The tool connects to the justETF.com website and does the query of the
 % asset information based on the selection criteria.
-% 
+%
 %
 % Author:   Antonino Mazzola
 %
 % Date:     17/03/2024 - First release
 %           18/03/2024 - Code comments and default output bug fix
+%           05/04/2024 - Bug fix when selecting assets with different
+%                        filter selection
 %
 % Inputs:
 %           Input - nothing required
 %
-% Outputs: 
+% Outputs:
 %           Output - structures with selected assets info
 %
 % Example:
 %
-%           out = JETFSelector() 
+%           out = JETFSelector()
 
 %% Define default output
 out = [];
 
-%% instance of JTF class 
+%% instance of JTF class
 jtf = JETF();
 
 %% GUI creation
@@ -54,11 +56,13 @@ figH = figure(...
     'DockControls'                  , 'off');
 
 
-figH.Position = [300 150 1200 600];
-figH.Visible = 'on';
-
-jFrame = getjframe(figH);
-jFrame.setAlwaysOnTop(true);
+figH.Position   = [300 150 1200 600];
+figH.Visible    = 'on';
+jFrame          = get(handle(figH),'javaframe');
+drawnow; pause(0.01);
+jFrame.fHG2Client.getWindow.setAlwaysOnTop(true);
+% % jFrame = getjframe(figH);
+% % jFrame.setAlwaysOnTop(true);
 
 % main gui components creation
 FontSize = 11;
@@ -86,6 +90,11 @@ vBox4 =  uix.VBox( 'Parent', hRowFilters, 'Spacing', 2, 'Padding', 0,'Background
 hCountryCheck = uicontrol( 'Style','check','Parent', vBox4, 'String','Country','FontSize',FontSize,'BackgroundColor',[1 1 1],'Callback',@CountryCheckCallback);
 hCountryPopup = uicontrol( 'Style','popup','Parent', vBox4, 'String',JETF().country(:,2),'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
 set( vBox4, 'Heights', [25 25] );
+
+vBox5 =  uix.VBox( 'Parent', hRowFilters, 'Spacing', 2, 'Padding', 0,'BackgroundColor',[1 1 1] );
+hListingsCheck = uicontrol( 'Style','check','Parent', vBox5, 'String','Listing','FontSize',FontSize,'BackgroundColor',[1 1 1],'Callback',@ListingsCheckCallback);
+hListingsPopup = uicontrol( 'Style','popup','Parent', vBox5, 'String',JETF().listings(:,2),'FontSize',FontSize,'Callback','','BackgroundColor',[1 1 1]);
+set( vBox5, 'Heights', [25 25] );
 
 uix.Empty('Parent',vBox);
 
@@ -127,6 +136,13 @@ hScrollContainer.Position   = [0 0 1 1];
 jListModel  = javaObjectEDT(com.jidesoft.list.DefaultDualListModel());
 jList       = handle(javaObjectEDT(com.jidesoft.list.DualList(jListModel)), 'CallbackProperties');
 jList.setSelectionMode(jListModel.DISABLE_SELECTION);
+
+% jOrigList = handle(javaObjectEDT(jList.getOriginalList), 'CallbackProperties');
+jSelecList = handle(javaObjectEDT(jList.getSelectedList), 'CallbackProperties');
+
+% jOrigList.MouseClickedCallback = @AssetSelectedCallback;
+jSelecList.PropertyChangeCallback = @AssetSelectedCallback;
+
 
 [hList, hListContainer] = javacomponent(jList, [0 0 500 300], hRow);
 hList.setBackground(java.awt.Color(1,1,1));
@@ -170,6 +186,9 @@ FullETFTags     = [];
 FullETFIsins    = [];
 FullETFTickers  = [];
 
+% str_ticker      = '';
+% str_market      = '';
+
 % call to reset filters triggers the query to jtf
 ResetFilters();
 
@@ -179,10 +198,19 @@ catch
 end
 
 %% assign output and exit
-for zz = 1:numel(ListOfAssets)
-    idxSel = strcmp(FullETFNames, ListOfAssets{zz});
-    out.(FullETFIsins{idxSel}) = jtf.data(idxSel);
-end
+
+% -- Old code before 04/05/2024
+% for zz = 1:numel(ListOfAssets)
+%     idxSel = find(strcmp(FullETFNames, ListOfAssets{zz}));
+%     idxSel = idxSel(1);
+%     out.(FullETFIsins{idxSel}) = jtf.data(idxSel);
+%
+%     % update ticker based on the stock market selected
+%     out.(FullETFIsins{idxSel}).ticker = [out.(FullETFIsins{idxSel}).ticker str_ticker];
+%
+%     out.(FullETFIsins{idxSel}).market = str_market;
+%
+% end
 
 %% Support functions
 
@@ -193,11 +221,13 @@ end
         hPolicyCheck.Value          = 0;
         hReplicationCheck.Value     = 0;
         hCountryCheck.Value         = 0;
+        hListingsCheck.Value        = 0;
         
         AssetTypeCheckCallback();
         PolicyCheckCallback();
         ReplicationCheckCallback();
         CountryCheckCallback();
+        ListingsCheckCallback();
         
         % reset also the search box
         jSearchBox.setText('');
@@ -244,7 +274,9 @@ end
         if hCountryCheck.Value
             options.country = JETF().country(hCountryPopup.Value,1);
         end
-        
+        if hListingsCheck.Value
+            options.listings = JETF().listings(hListingsPopup.Value,[1 3]);
+        end
         % call to jtf to query justetf.com
         
         jtf.make_request(the_filter,  options);
@@ -275,12 +307,20 @@ end
         
     end
 
-    % Filters callbacks
+% Filters callbacks
     function CountryCheckCallback(varargin)
         if hCountryCheck.Value
             hCountryPopup.Enable = 'on';
         else
             hCountryPopup.Enable = 'off';
+        end
+        %         ApplyFilters();
+    end
+    function ListingsCheckCallback(varargin)
+        if hListingsCheck.Value
+            hListingsPopup.Enable = 'on';
+        else
+            hListingsPopup.Enable = 'off';
         end
         %         ApplyFilters();
     end
@@ -314,13 +354,13 @@ end
         end
     end
 
-    % search box function to process and update the dual list
+% search box function to process and update the dual list
     function PrintCurrentSearch(varargin)
         ListOfAssets = GetCurrentTextString(FullETFNames, FullETFIsins, FullETFTickers);
         setListToDualList(ListOfAssets);
     end
 
-    % function that does the actual search box string processing
+% function that does the actual search box string processing
     function ListOfAssets_ = GetCurrentTextString(Names, Isins, Tickers, varargin)
         
         CurrentString   = lower(char(jSearchBox.getText));
@@ -330,7 +370,7 @@ end
         idxTickers      = contains(lower(Tickers),CurrentString);
         
         % if the user puts the isin or the ticker the tool will find the
-        % correspondent asset 
+        % correspondent asset
         idxs            = idxNames | idxIsins | idxTickers;
         
         ListOfAssets_ = Names;
@@ -360,7 +400,7 @@ end
         hList.setModel(listModel);
     end
 
-    % jTree callbacks
+% jTree callbacks
     function TreeMousePressedFcn(~,eventData)
         % Get the clicked node
         clickX = eventData.getX;
@@ -413,13 +453,66 @@ end
         end
     end
 
-    % Apply button callback
+% Apply button callback
     function ApplyCallback(varargin)
-        ListOfAssets = cell(hList.getSelectedValues);
+        % -- Old code before 04/05/2024 --
+        %         ListOfAssets = cell(hList.getSelectedValues);
+        %         if hListingsCheck.Value
+        %             str_ticker = ['.' JETF().listings{hListingsPopup.Value,3}];
+        %             str_market = JETF().listings{hListingsPopup.Value,2};
+        %         end
+        
         delete(figH)
     end
+    function AssetSelectedCallback(varargin)
+        
+        try % function is triggered internally from some java properties updates, so skip in that case...
+            ListOfAssets = cell(hList.getSelectedValues);
+            if hListingsCheck.Value
+                str_ticker = ['.' JETF().listings{hListingsPopup.Value,3}];
+                str_market = JETF().listings{hListingsPopup.Value,2};
+            end
+            FullAssetIsinsList = {};
+            if ~isempty(out)
+                FullAssetIsinsList = fieldnames(out);
+            end
+            for tt = 1:numel(ListOfAssets)
+                idxSel = find(strcmp(FullETFNames, ListOfAssets{tt}));
+                if ~isempty(idxSel)
+                    idxSel = idxSel(1);
+                    
+                    theIsin = FullETFIsins{idxSel};
+                    
+                    if any(strcmp(FullAssetIsinsList, theIsin)) % asset already selected, skip
+                        continue
+                    end
+                    
+                    out.(FullETFIsins{idxSel}) = jtf.data(idxSel);
+                    
+                    % update ticker based on the stock market selected
+                    out.(FullETFIsins{idxSel}).ticker = [out.(FullETFIsins{idxSel}).ticker str_ticker];
+                    out.(FullETFIsins{idxSel}).market = str_market;
+                end
+                
+            end
+            
+            if ~isempty(out)% remove assets unselected from dual list
+                FullAssetIsinsList = fieldnames(out);
+                FullAssetList = cell(1, numel(FullAssetIsinsList));
+                for tt = 1:numel(FullAssetIsinsList)
+                    FullAssetList{tt} = out.(FullAssetIsinsList{tt}).name;
+                end
+                [~, idxs] = setdiff(FullAssetList, ListOfAssets); % remove assets unselected from dual list
+                AssetsToRemove = FullAssetIsinsList(idxs);
+                out = rmfield(out, AssetsToRemove);
+            end
+        catch
+        end
+        disp('action performed...')
+    end
     function SettingsDialogCloseReqFcn(varargin)
-        ListOfAssets = [];
+        ListOfAssets    = [];
+        out             = [];
         delete(figH)
     end
     function SettingsDialogDeleteFcn(varargin)
